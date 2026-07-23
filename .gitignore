@@ -1,0 +1,28 @@
+# Cloned baseline repo (set up by scripts/00_setup_env.sh, not part of this repo)
+external/gaussian-splatting/
+
+# Organizer data dumps (huge, download separately from the contest portal)
+VAI_NVS_DATA*.zip
+
+# Prepared/generated data, checkpoints, renders (huge, regenerate via scripts/)
+data/
+output/
+output_test/
+local_eval_gt/
+local_eval_gt_raw/
+submission_build*/
+
+# Submission packages (regenerate via 04_make_submission.py)
+*.zip
+
+# Logs / environment snapshots (regenerate via 02_train_scenes.sh / 06_capture_environment.sh)
+logs/
+logs_round2_gpu_run/
+environment_snapshot/
+reproducibility_bundle.tar.gz
+
+# Python / env
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

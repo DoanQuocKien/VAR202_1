@@ -1,0 +1,18 @@
+# Scene names match folder names under data/ (public_set scenes prepared via
+# scripts/00b_prepare_data.py --split public_set).
+scenes:
+  - HCM0181
+  - HCM0193
+  - HCM0204
+  - hcm0031
+  - hcm0034
+
+# Training options passed through to the baseline train.py.
+# See external/gaussian-splatting/arguments/__init__.py for the full list.
+train:
+  iterations: 4500        # shortened run (~3h total for 5 scenes on RTX 3060 @ ~2.1 it/s)
+                           # baseline default is 30000 for full quality; bump this back
+                           # up for the real submission run once the pipeline is verified
+  sh_degree: 3             # baseline default
+  eval: false               # false = use 100% of train images; we validate against
+                             # local_eval_gt/ (real ground truth) instead, see README section 10.

@@ -1,0 +1,19 @@
+# Dependencies for the pipeline scripts in this project (scripts/*.py).
+# torch / torchvision / diff_gaussian_rasterization / simple_knn come from
+# the baseline repo's own environment.yml — installed by 00_setup_env.sh,
+# not listed here.
+#
+# No lower-bound versions pinned: the baseline repo's environment.yml pins an
+# older Python (it targets an older CUDA/torch combo), so pip must be free to
+# pick whatever version of each package is compatible with that Python, not
+# necessarily the newest. These tools (CSV/YAML parsing, image I/O, metrics)
+# don't need bleeding-edge versions to work for this pipeline.
+
+pandas
+numpy
+pyyaml
+tqdm
+Pillow
+opencv-python-headless
+scikit-image
+lpips

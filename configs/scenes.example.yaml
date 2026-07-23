@@ -1,0 +1,15 @@
+# List the scenes to process. Scene names must match folder names under data/
+# (i.e. data/<scene_name>/). Copy this file to scenes.yaml and edit, or point
+# scripts directly at this file with --scenes_config.
+scenes:
+  - scene_001
+  - scene_002
+  - scene_003
+
+# Training options passed through to the baseline train.py.
+# See external/gaussian-splatting/arguments/__init__.py for the full list.
+train:
+  iterations: 30000       # baseline default
+  sh_degree: 3             # baseline default
+  eval: false               # false = use 100% of train images (final submission run)
+                             # true  = hold out ~1/8 of train images for local validation (see README section 8)

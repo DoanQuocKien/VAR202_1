@@ -1,0 +1,31 @@
+# Round 2 data (VAI_NVS_DATA_ROUND2.zip) - organizers replaced the private
+# submission scenes. Flat zip layout (scene folders directly at zip root),
+# no phase1/<split>/ prefix, no ground-truth test images (test/ only has
+# test_poses.csv) - this is the real set to submit against.
+#
+# 5 BTS scenes (SIMPLE_RADIAL, undistorted by 00b_prepare_data.py) +
+# 2 generic benchmark scenes (bonsai, chair - SIMPLE_PINHOLE, already
+# undistorted, copied through as-is).
+scenes:
+  - HCM0421
+  - HCM0539
+  - HCM0540
+  - HCM0644
+  - HCM0674
+  - bonsai
+  - chair
+
+train:
+  iterations: 30000       # baseline default - full quality run
+  sh_degree: 3
+  eval: false
+
+# NOTE: a full-res 30000-iteration run blew past this GPU's 12GB VRAM
+# (densification grows the Gaussian count a lot by iteration ~6000, and
+# Windows/WDDM silently pages into system RAM instead of erroring, which
+# tanked speed ~75x instead of crashing). Train at half resolution instead -
+# pass `-r 2` as a global extra arg on the command line:
+#   bash scripts/02_train_scenes.sh configs/scenes_round2.yaml -r 2
+# This does NOT affect the final render resolution/quality requirement -
+# 03_render_novel_views.py always renders at the full width/height from
+# test_poses.csv regardless of what resolution training used.

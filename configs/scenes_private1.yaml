@@ -1,0 +1,17 @@
+# private_set1 - the actual Round 1 scenes to submit (no ground-truth test
+# images, only test_poses.csv). Prepared separately from configs/scenes.yaml
+# (public_set, practice scenes) so training/rendering don't get mixed up.
+scenes:
+  - HCM0249
+  - HCM0254
+  - HCM0276
+  - HCM1439
+  - HNI0131
+  - HNI0265
+  - HNI0366
+  - HNI0437
+
+train:
+  iterations: 4500        # same shortened setting as the public_set practice run
+  sh_degree: 3
+  eval: false
