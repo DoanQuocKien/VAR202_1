@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Calibrate Depth Anything V2 monocular depth maps against COLMAP sparse 3D points.
-For each training camera image:
-1. Projects COLMAP sparse points into camera space to get true metric z.
-2. Computes median ratio between 1/z_colmap and monocular_depth_norm.
-3. Saves exact per-image scale & offset into data/<scene>/train/sparse/0/depth_params.json
+Calibrate Depth Anything V2 monocular depth maps using Camera Orbit Center distance.
+Since points3D.bin contains dummy points, we use the 3D camera translation vectors
+(tx, ty, tz) from images.bin to compute the camera-to-target distance for each shot.
+Close-up shots get smaller scale, distant shots get larger scale -> aligning monocular depth
+across all orbiting drone camera angles!
 """
 import argparse
 import json
@@ -21,7 +21,6 @@ from pipeline_utils import is_image
 
 
 def read_colmap_sparse(sparse_dir: Path) -> Tuple[Dict[int, Any], Dict[int, Any], Dict[int, Any]]:
-    """Simple parser for COLMAP binary sparse files (points3D.bin, images.bin, cameras.bin)."""
     sys.path.insert(0, str(Path(__file__).parent.parent / "external" / "gaussian-splatting"))
     from scene.colmap_loader import read_points3D_binary, read_extrinsics_binary, read_intrinsics_binary
     
@@ -31,74 +30,51 @@ def read_colmap_sparse(sparse_dir: Path) -> Tuple[Dict[int, Any], Dict[int, Any]
     return pts3d, imgs, cams
 
 
-def calibrate_scene(scene_train_dir: Path):
+def calibrate_scene_orbital(scene_train_dir: Path):
     sparse_dir = scene_train_dir / "sparse" / "0"
     depths_dir = scene_train_dir / "depths"
     
-    if not (sparse_dir / "points3D.bin").is_file():
-        print(f"[{scene_train_dir.parent.name}] No points3D.bin under {sparse_dir}, skipping calibration.")
+    if not (sparse_dir / "images.bin").is_file():
+        print(f"[{scene_train_dir.parent.name}] No images.bin under {sparse_dir}, skipping.")
         return
 
     pts3d, imgs, cams = read_colmap_sparse(sparse_dir)
-    print(f"[{scene_train_dir.parent.name}] Calibrating {len(imgs)} cameras against {len(pts3d)} sparse 3D points...")
 
-    pts3d_dict = {}
-    if isinstance(pts3d, dict):
-        for p_id, pt in pts3d.items():
-            if hasattr(pt, "xyz"):
-                pts3d_dict[p_id] = pt.xyz
+    # Compute camera centers in world space: C = -R^T @ t
+    from scene.colmap_loader import qvec2rotmat
+    cam_centers = {}
+    for img_id, img_info in imgs.items():
+        stem = Path(img_info.name).stem
+        R = qvec2rotmat(img_info.qvec)
+        t = img_info.tvec
+        C = -np.transpose(R) @ t
+        cam_centers[stem] = C
+
+    if not cam_centers:
+        return
+
+    # Scene target center is the mean of all camera positions
+    all_C = np.array(list(cam_centers.values()))
+    target_center = np.mean(all_C, axis=0)
+
+    # Distance from each camera to scene center
+    distances = {stem: float(np.linalg.norm(C - target_center)) for stem, C in cam_centers.items()}
+    mean_dist = float(np.mean(list(distances.values())))
+
+    print(f"[{scene_train_dir.parent.name}] Calibrating {len(distances)} camera depths via orbital distance (mean dist: {mean_dist:.2f}m)...")
 
     depth_params = {}
-    if isinstance(imgs, dict):
-        for img_id, img_info in imgs.items():
-            stem = Path(img_info.name).stem
-            depth_png = depths_dir / f"{stem}.png"
-            
-            if not depth_png.is_file():
-                depth_params[stem] = {"scale": 1.0, "offset": 0.0}
-                continue
+    for stem, dist in distances.items():
+        # Scale monocular relative depth proportionally to camera distance
+        scale = dist / (mean_dist + 1e-6)
+        offset = 0.0
+        depth_params[stem] = {"scale": float(scale), "offset": float(offset)}
 
-            raw_png = cv2.imread(str(depth_png), cv2.IMREAD_UNCHANGED)
-            if raw_png is None:
-                depth_params[stem] = {"scale": 1.0, "offset": 0.0}
-                continue
-            
-            mono_inv_depth = raw_png.astype(np.float64) / 65535.0
-
-            qvec = img_info.qvec
-            tvec = img_info.tvec
-            
-            from scene.colmap_loader import qvec2rotmat
-            R = qvec2rotmat(qvec)
-
-            colmap_inv_depths = []
-            mono_vals = []
-
-            h, w = mono_inv_depth.shape
-            for pt_id, point2D in zip(img_info.point3D_ids, img_info.xys):
-                if pt_id in pts3d_dict:
-                    P_world = pts3d_dict[pt_id]
-                    P_cam = R @ P_world + tvec
-                    z = P_cam[2]
-                    if z > 0.1:
-                        x_px, y_px = int(round(point2D[0])), int(round(point2D[1]))
-                        if 0 <= x_px < w and 0 <= y_px < h:
-                            colmap_inv_depths.append(1.0 / z)
-                            mono_vals.append(mono_inv_depth[y_px, x_px])
-
-            if len(colmap_inv_depths) >= 10:
-                c_inv = np.array(colmap_inv_depths)
-                m_val = np.array(mono_vals)
-                scale = float(np.median(c_inv / (m_val + 1e-6)))
-                offset = 0.0
-                depth_params[stem] = {"scale": scale, "offset": offset}
-            else:
-                depth_params[stem] = {"scale": 1.0, "offset": 0.0}
-
+    # Save depth_params.json
     with open(sparse_dir / "depth_params.json", "w") as f:
         json.dump(depth_params, f, indent=2)
 
-    print(f"[{scene_train_dir.parent.name}] Done. Calibrated depth_params.json saved.")
+    print(f"[{scene_train_dir.parent.name}] Done. Calibrated orbital depth_params.json saved.")
 
 
 def main():
@@ -115,7 +91,7 @@ def main():
     for scene_dir in scenes:
         train_dir = scene_dir / "train"
         if (train_dir / "sparse" / "0").is_dir():
-            calibrate_scene(train_dir)
+            calibrate_scene_orbital(train_dir)
 
 
 if __name__ == "__main__":
