@@ -21,13 +21,12 @@ from pipeline_utils import is_image
 
 def read_colmap_sparse(sparse_dir: Path):
     """Simple parser for COLMAP binary sparse files (points3D.bin, images.bin, cameras.bin)."""
-    # Import from baseline repo if available
     sys.path.insert(0, str(Path(__file__).parent.parent / "external" / "gaussian-splatting"))
-    from scene.colmap_loader import read_points3D_binary, read_images_binary, read_cameras_binary
+    from scene.colmap_loader import read_points3D_binary, read_extrinsics_binary, read_intrinsics_binary
     
     pts3d = read_points3D_binary(sparse_dir / "points3D.bin")
-    imgs = read_images_binary(sparse_dir / "images.bin")
-    cams = read_cameras_binary(sparse_dir / "cameras.bin")
+    imgs = read_extrinsics_binary(sparse_dir / "images.bin")
+    cams = read_intrinsics_binary(sparse_dir / "cameras.bin")
     return pts3d, imgs, cams
 
 
