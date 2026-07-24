@@ -14,10 +14,10 @@ cộng với vài kỹ thuật tăng điểm được kiểm chứng qua benchma
 |---|---|
 | Deadline | 30/07/2026 (chỉ tính lần nộp **cuối cùng**, nộp lại thoải mái) |
 | Giới hạn file nộp | 350MB/zip |
-| Bản nộp tốt nhất hiện tại | **72.52340 điểm** (7/7 scene chấm được) |
-| File tương ứng | `submission_round2_ft.zip` (320MB) |
-| Cấu hình bản tốt nhất | full-res, sh_degree=3, 30000 iter + fine-tune LPIPS nhẹ (5000 iter) + redistort ống kính + JPEG q98 — xem mục 6 |
-| Việc còn dang dở | Chưa thử: tăng mật độ Gaussian (densification) ở mức trung bình — xem mục 8 "Hướng chưa khai thác" |
+| Bản nộp tốt nhất hiện tại | **72.7025 điểm** (7/7 scene chấm được) |
+| File tương ứng | `submission_round2_moderate_densify.zip` (323MB) |
+| Cấu hình bản tốt nhất | full-res, sh_degree=3, 30000 iter (`--densify_grad_threshold 0.00015 --densify_until_iter 20000`) + fine-tune LPIPS nhẹ (5000 iter) + redistort ống kính + JPEG q98 — xem mục 6 & 8 |
+| Việc còn dang dở | Thử tiếp `--densify_grad_threshold 0.00012` (giữa 0.00015 và 0.00010) — xem mục 8 |
 
 Chi tiết điểm số qua từng lần nộp ở mục 7.
 
@@ -230,29 +230,38 @@ Kết quả thật trên leaderboard: 72.206 → **72.52340** (PSNR 22.08→24.6
 
 ## 7. Lịch sử điểm số (leaderboard thật)
 
-| Ngày | Cấu hình | Điểm |
-|---|---|---|
-| — | Bản train đầu tiên (baseline mặc định) | 65.214 |
-| 20/07/2026 | + JPEG quality fix (q98) | 66.669 |
-| 20/07/2026 | + redistort ống kính (mục 6.2) | 72.206 |
-| 20/07/2026 23:41 | + fine-tune LPIPS nhẹ (mục 6.4) — **bản tốt nhất hiện tại** | **72.52340** |
+| Ngày | Cấu hình | PSNR | SSIM | LPIPS | Điểm |
+|---|---|---|---|---|---|
+| — | Bản train đầu tiên (baseline mặc định) | — | — | — | 65.214 |
+| 20/07/2026 | + JPEG quality fix (q98) | — | — | — | 66.669 |
+| 20/07/2026 | + redistort ống kính (mục 6.2) | — | — | — | 72.206 |
+| 20/07/2026 23:41 | + fine-tune LPIPS nhẹ (mục 6.4) | 24.61 | 81.49 | 16.73 | 72.52340 |
+| 24/07/2026 | + moderate densification (`--densify_grad_threshold 0.00015 --densify_until_iter 20000`) — **bản tốt nhất hiện tại** | 24.579 | 81.727 | 16.407 | **72.7025** |
 
-## 8. Hướng chưa khai thác (gợi ý cho đội tiếp tục)
+## 8. Kết quả thử nghiệm densification & hướng tiếp theo
 
-**Tăng mật độ Gaussian (densification) ở mức trung bình** — đây là hướng duy nhất
-còn khả năng tạo nhảy vọt điểm thật sự (không chỉ vài phần trăm như mục 6.4), vì
-PSNR+SSIM chiếm 0.6 trọng số điểm và cả hai phụ thuộc trực tiếp vào việc model có
-đủ Gaussian tái tạo chi tiết hay không. Đã thử 2 cực (nhẹ = không đổi, mạnh = OOM
-crash) nhưng **chưa thử vùng giữa**. 3 tham số CLI của `train.py` gốc để thử:
+### 8.1. Đã thử — moderate densification (+0.18 điểm)
 
-- `--densify_grad_threshold` (mặc định 0.0002) — thử giảm nhẹ, ví dụ 0.00015
-- `--densify_until_iter` (mặc định 15000) — thử kéo dài, ví dụ 20000
-- `--percent_dense` (mặc định 0.01)
+| Cấu hình | grad_threshold | densify_until | Kết quả |
+|---|---|---|---|
+| Default | 0.00020 | 15000 | baseline (không đổi) |
+| **Moderate** ✅ | **0.00015** | **20000** | **+0.18 điểm (72.523 → 72.703)** |
+| Aggressive | 0.00010 | 25000 | Chưa thử (nguy cơ OOM) |
 
-Lưu ý: đây là **retrain toàn bộ từ đầu** (không phải fine-tune vài phút), mỗi lần
-thử tốn ~1-2 tiếng GPU. Luôn validate trên benchmark `HCM0193` trước (scene duy
-nhất có ground-truth thật để tự chấm điểm — xem mục 9) trước khi đụng vào 5 scene
-BTS thật.
+Cơ chế: SSIM tăng (81.49→81.73) và LPIPS giảm (16.73→16.41) nhờ nhiều Gaussian hơn
+tái tạo chi tiết tốt hơn; PSNR hơi giảm nhẹ (24.61→24.58) — trade-off chấp nhận được.
+Peak VRAM khi train moderate: **~19.5/24 GB** (RTX 4090), không OOM.
+
+### 8.2. Hướng còn mở
+
+- **`--densify_grad_threshold 0.00012`** (giữa moderate và aggressive) — có thể thêm
+  điểm mà không OOM, nhưng cần thử. Peak VRAM ước ~21-22 GB.
+- **Aggressive (`0.00010`, `25000`)** — rủi ro OOM cao hơn trên 24 GB VRAM. Nếu muốn
+  thử: chuẩn bị fallback về moderate nếu crash.
+- **`--percent_dense`** (mặc định 0.01) — chưa thử thay đổi, ít ảnh hưởng hơn 2 param trên.
+
+Lưu ý: **không còn HCM0193 làm benchmark nội bộ** (Round 2 không có GT ảnh test),
+nên mỗi lần thử phải nộp thẳng lên leaderboard để biết kết quả thật.
 
 ## 9. Tự đánh giá trước khi nộp (dùng scene `HCM0193`)
 
