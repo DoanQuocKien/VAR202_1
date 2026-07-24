@@ -17,3 +17,4 @@ Pillow
 opencv-python-headless
 scikit-image
 lpips
+plyfile
