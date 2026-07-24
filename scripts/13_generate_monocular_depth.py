@@ -27,17 +27,19 @@ def process_scene(scene_train_dir: Path, pipe):
     img_files = sorted([p for p in images_dir.iterdir() if is_image(p)])
     print(f"[{scene_train_dir.parent.name}] Processing {len(img_files)} images for monocular depth...")
 
+    depth_params = {}
     for img_path in img_files:
-        out_png = depths_dir / f"{img_path.stem}.png"
+        stem = img_path.stem
+        out_png = depths_dir / f"{stem}.png"
+        depth_params[stem] = {"scale": 1.0, "offset": 0.0}
+
         if out_png.is_file():
             continue
 
         raw_img = Image.open(img_path).convert("RGB")
-        # Run monocular depth estimation
         result = pipe(raw_img)
         depth_map = np.array(result["depth"], dtype=np.float32)
 
-        # Normalize relative inverse depth to uint16 range (0 - 65535)
         d_min, d_max = depth_map.min(), depth_map.max()
         if d_max > d_min:
             depth_norm = (depth_map - d_min) / (d_max - d_min)
@@ -47,7 +49,13 @@ def process_scene(scene_train_dir: Path, pipe):
         depth_uint16 = (depth_norm * 65535.0).astype(np.uint16)
         cv2.imwrite(str(out_png), depth_uint16)
 
-    print(f"[{scene_train_dir.parent.name}] Done. Wrote depth maps to {depths_dir}")
+    # Save depth_params.json under sparse/0/
+    sparse_dir = scene_train_dir / "sparse" / "0"
+    sparse_dir.mkdir(parents=True, exist_ok=True)
+    with open(sparse_dir / "depth_params.json", "w") as f:
+        json.dump(depth_params, f, indent=2)
+
+    print(f"[{scene_train_dir.parent.name}] Done. Wrote depth maps and depth_params.json")
 
 
 def main():
