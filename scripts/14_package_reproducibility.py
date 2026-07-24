@@ -72,23 +72,21 @@ def main():
                 if not pc_dir.is_dir():
                     continue
 
-                iters = []
-                for p in pc_dir.iterdir():
-                    if p.is_dir() and p.name.startswith("iteration_"):
-                        try:
-                            iters.append((int(p.name.split("_")[1]), p))
-                        except ValueError:
-                            pass
-                if not iters:
-                    continue
+                # Target iteration 37500 (our 72.7401 winning checkpoint)
+                iter_folder = pc_dir / "iteration_37500"
+                if not iter_folder.is_dir():
+                    # Fallback to latest if 37500 doesn't exist
+                    iters = [(int(p.name.split("_")[1]), p) for p in pc_dir.iterdir() if p.is_dir() and p.name.startswith("iteration_")]
+                    if iters:
+                        _, iter_folder = max(iters, key=lambda x: x[0])
 
-                latest_iter, latest_folder = max(iters, key=lambda x: x[0])
-                ply_file = latest_folder / "point_cloud.ply"
+                ply_file = iter_folder / "point_cloud.ply"
+                latest_iter = iter_folder.name.split("_")[1]
 
                 if ply_file.is_file():
                     target_dir = stage_dir / "checkpoints" / scene_name / f"iteration_{latest_iter}"
                     target_dir.mkdir(parents=True, exist_ok=True)
-                    print(f"  Staging lossless PLY for {scene_name} (iter {latest_iter})...")
+                    print(f"  Staging winning PLY for {scene_name} (iter {latest_iter})...")
                     shutil.copy(ply_file, target_dir / "point_cloud.ply")
 
                 # Copy configs
