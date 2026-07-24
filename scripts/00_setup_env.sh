@@ -56,6 +56,7 @@ fi
 
 echo "== 3/4: installing pipeline-specific dependencies =="
 if [ -n "${CONDA_RUN:-}" ]; then
+  ${CONDA_RUN} pip install mkl
   ${CONDA_RUN} pip install -r requirements.txt
 else
   pip install -r requirements.txt
