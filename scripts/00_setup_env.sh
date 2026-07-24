@@ -61,10 +61,13 @@ check_and_install_submodule () {
     echo "  ${import_name}: already installed, skipping"
   else
     echo "  ${import_name}: compiling from ${submodule_dir}..."
+    # --no-build-isolation: prevents pip from creating an isolated subprocess
+    # that lacks torch, which causes "ModuleNotFoundError: No module named torch"
+    # during setup.py egg_info / wheel build for CUDA extensions.
     if [ -n "${CONDA_RUN:-}" ]; then
-      ${CONDA_RUN} pip install "${EXTERNAL_DIR}/${submodule_dir}"
+      ${CONDA_RUN} pip install --no-build-isolation "${EXTERNAL_DIR}/${submodule_dir}"
     else
-      pip install "${EXTERNAL_DIR}/${submodule_dir}"
+      pip install --no-build-isolation "${EXTERNAL_DIR}/${submodule_dir}"
     fi
   fi
 }
