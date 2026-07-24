@@ -253,16 +253,24 @@ Cơ chế: SSIM tăng (81.49→81.73) và LPIPS giảm (16.73→16.41) nhờ nhi
 tái tạo chi tiết tốt hơn; PSNR hơi giảm nhẹ (24.61→24.58) — trade-off chấp nhận được.
 Peak VRAM khi train moderate: **~19.5/24 GB** (RTX 4090), không OOM.
 
-### 8.2. Hướng còn mở
+### 8.2. Đang thử nghiệm — Monocular Depth Supervision (Depth Anything V2)
 
-- **`--densify_grad_threshold 0.00012`** (giữa moderate và aggressive) — có thể thêm
-  điểm mà không OOM, nhưng cần thử. Peak VRAM ước ~21-22 GB.
-- **Aggressive (`0.00010`, `25000`)** — rủi ro OOM cao hơn trên 24 GB VRAM. Nếu muốn
-  thử: chuẩn bị fallback về moderate nếu crash.
-- **`--percent_dense`** (mặc định 0.01) — chưa thử thay đổi, ít ảnh hưởng hơn 2 param trên.
+- Dùng `Depth Anything V2` sinh depth map 16-bit PNG cho toàn bộ ảnh train.
+- Thêm `--depths depths` vào `train.py` để giám sát hình học 3D thật (tránh floater/lỗi góc nhìn mới).
+- `HCM0421` train PSNR tăng **23.80 → 23.97 dB (+0.17 dB)**, `HCM0539` tăng **23.50 → 24.46 dB (+0.96 dB)**.
 
-Lưu ý: **không còn HCM0193 làm benchmark nội bộ** (Round 2 không có GT ảnh test),
-nên mỗi lần thử phải nộp thẳng lên leaderboard để biết kết quả thật.
+---
+
+### 8.3. Đột phá tiếp theo (Breakthrough Roadmap)
+
+Dưới đây là 4 hướng đột phá tiềm năng cao nhất sau khi hoàn thành depth supervision:
+
+| Thứ tự | Kỹ thuật / Đột phá | Chi phí | Kỳ vọng | Mô tả |
+|---|---|---|---|---|
+| **1** | **Anti-Aliased Rendering** | **$0.00** | **+0.2 đến +0.5** | Bật `--antialiasing` lúc render (Mip-Splatting filter). Không cần train lại. Giảm nhiễu mỏng ở khung sắt/dây cáp BTS. |
+| **2** | **Supersampled Rendering (2x)** | **~$0.05** | **+0.1 đến +0.3** | Render ở 2x độ phân giải (supersample), cho `10_redistort_renders.py` tự downsample khi remap. Ảnh nét hơn, ít mờ nội suy. |
+| **3** | **Test-Time Adaptation** | **~$0.50** | **+0.3 đến +1.0** | Tối ưu nhẹ 5-10 iter cho từng góc nhìn test dựa trên tính nhất quán depth/smoothness trước khi xuất ảnh. |
+| **4** | **2D Gaussian Splatting (2DGS)** | **~$3.00** | **+1.0 đến +3.0** | Thay thế 3DGS bằng 2DGS (surfels dạng mặt phẳng). Cực kỳ thích hợp cho công trình xây dựng/cột BTS. |
 
 ## 9. Tự đánh giá trước khi nộp (dùng scene `HCM0193`)
 
