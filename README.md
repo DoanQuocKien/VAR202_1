@@ -254,24 +254,23 @@ Cơ chế: SSIM tăng (81.49→81.73) và LPIPS giảm (16.73→16.41) nhờ nhi
 tái tạo chi tiết tốt hơn; PSNR hơi giảm nhẹ (24.61→24.58) — trade-off chấp nhận được.
 Peak VRAM khi train moderate: **~19.5/24 GB** (RTX 4090), không OOM.
 
-### 8.2. Đang thử nghiệm — Monocular Depth Supervision (Depth Anything V2)
+### 8.2. Đã thử — Monocular Depth Supervision & Render-time Anti-Aliasing
 
-- Dùng `Depth Anything V2` sinh depth map 16-bit PNG cho toàn bộ ảnh train.
-- Thêm `--depths depths` vào `train.py` để giám sát hình học 3D thật (tránh floater/lỗi góc nhìn mới).
-- `HCM0421` train PSNR tăng **23.80 → 23.97 dB (+0.17 dB)**, `HCM0539` tăng **23.50 → 24.46 dB (+0.96 dB)**.
+- **Monocular Depth Supervision (Depth Anything V2)**: Điểm **72.7198** (giảm nhẹ 0.02 so với 72.7401). 
+  - *Phân tích*: Depth Anything V2 giúp train PSNR tăng vọt (HCM0539 tăng **+0.96 dB**), loại bỏ hoàn toàn floater. Tuy nhiên, do dùng `scale=1.0, offset=0.0` cố định, độ sâu tương đối (0..1) của từng ảnh drone bị lệch scale tuyệt đối với nhau.
+  - *Tiềm năng tương lai*: Nếu fit `scale` và `offset` chuẩn từng ảnh theo COLMAP sparse points (affine alignment), đây vẫn là phương pháp đột phá cực kỳ tiềm năng.
+- **Render-time Anti-Aliasing (`--antialiasing`)**: Điểm **64.5105** (sụt giảm nặng — Mip-Splatting filter làm mờ ảnh khi checkpoint không được *train* trực tiếp với filter này).
+- **Kết luận**: Giữ nguyên bản **72.7401** (`submission_round2_fast_ft_v2.zip`) làm bản nộp chính thức.
 
 ---
 
 ### 8.3. Đột phá tiếp theo (Breakthrough Roadmap)
 
-Dưới đây là 4 hướng đột phá tiềm năng cao nhất sau khi hoàn thành depth supervision:
-
 | Thứ tự | Kỹ thuật / Đột phá | Chi phí | Kỳ vọng | Mô tả |
 |---|---|---|---|---|
-| **1** | **Anti-Aliased Rendering** | **$0.00** | **+0.2 đến +0.5** | Bật `--antialiasing` lúc render (Mip-Splatting filter). Không cần train lại. Giảm nhiễu mỏng ở khung sắt/dây cáp BTS. |
-| **2** | **Supersampled Rendering (2x)** | **~$0.05** | **+0.1 đến +0.3** | Render ở 2x độ phân giải (supersample), cho `10_redistort_renders.py` tự downsample khi remap. Ảnh nét hơn, ít mờ nội suy. |
-| **3** | **Test-Time Adaptation** | **~$0.50** | **+0.3 đến +1.0** | Tối ưu nhẹ 5-10 iter cho từng góc nhìn test dựa trên tính nhất quán depth/smoothness trước khi xuất ảnh. |
-| **4** | **2D Gaussian Splatting (2DGS)** | **~$3.00** | **+1.0 đến +3.0** | Thay thế 3DGS bằng 2DGS (surfels dạng mặt phẳng). Cực kỳ thích hợp cho công trình xây dựng/cột BTS. |
+| **1** | **Supersampled Rendering ONLY (2x)** | **~$0.05** | **+0.1 đến +0.3** | Render ở 2x (KHÔNG bật `--antialiasing`), để `10_redistort_renders.py` tự downsample bằng Lanczos khi remap. Khung sắt/dây cáp nét hơn. |
+| **2** | **Test-Time Adaptation** | **~$0.50** | **+0.3 đến +1.0** | Tối ưu nhẹ 5-10 iter cho từng góc nhìn test dựa trên tính nhất quán depth/smoothness trước khi xuất ảnh. |
+| **3** | **2D Gaussian Splatting (2DGS)** | **~$3.00** | **+1.0 đến +3.0** | Thay thế 3DGS bằng 2DGS (surfels dạng mặt phẳng). Cực kỳ thích hợp cho công trình xây dựng/cột BTS. |
 
 ## 9. Tự đánh giá trước khi nộp (dùng scene `HCM0193`)
 
