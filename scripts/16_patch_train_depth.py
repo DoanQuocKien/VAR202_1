@@ -46,10 +46,10 @@ def pearson_correlation_loss(pred, target):
         print(f"Saved to: {train_depth_path}")
     else:
         print("FAILED: Could not find Ll1depth = l1_loss(...) pattern.")
-        print("Here are lines 90-130 to inspect manually:")
+        print("Here are lines 130-180 to inspect manually:")
         lines = content.split('\n')
-        for i, line in enumerate(lines[90:130]):
-            print(f"{i+90}: {line}")
+        for i, line in enumerate(lines[130:180]):
+            print(f"{i+130}: {line}")
 
 if __name__ == "__main__":
     patch_train()
