@@ -15,9 +15,9 @@ cộng với vài kỹ thuật tăng điểm được kiểm chứng qua benchma
 | Deadline | 30/07/2026 (chỉ tính lần nộp **cuối cùng**, nộp lại thoải mái) |
 | Giới hạn file nộp | 350MB/zip |
 | Bản nộp tốt nhất hiện tại | **72.7401 điểm** (7/7 scene chấm được) |
-| File tương ứng | `submission_round2_fast_ft_v2.zip` |
+| File tương ứng | `submission_round2_fast_ft_v2.zip` (324MB) |
 | Cấu hình bản tốt nhất | full-res, sh_degree=3, 30000 iter (grad_th=0.00015, until=20000) + fine-tune LPIPS 5000 iter (λ_dssim=0.2, λ_lpips=0.1) + fine-tune v2 2500 iter (λ_dssim=0.3, λ_lpips=0.12) + redistort + JPEG q98 |
-| Việc còn dang dở | Thử depth regularization bằng monocular depth (Depth Anything V2) — xem mục 8.3 |
+| Việc còn dang dở | Thử Anti-Aliasing render flag & 2x Supersampled redistortion — xem mục 8.3 |
 
 Chi tiết điểm số qua từng lần nộp ở mục 7.
 
@@ -238,6 +238,7 @@ Kết quả thật trên leaderboard: 72.206 → **72.52340** (PSNR 22.08→24.6
 | 20/07/2026 23:41 | + fine-tune LPIPS nhẹ (mục 6.4) | 24.61 | 81.49 | 16.73 | 72.52340 |
 | 24/07/2026 | + moderate densification (`--densify_grad_threshold 0.00015 --densify_until_iter 20000`) | 24.579 | 81.727 | 16.407 | 72.7025 |
 | 24/07/2026 20:42 | + fast fine-tune v2 (λ_dssim=0.3, λ_lpips=0.12, 2500 iter on top of iter 35000) — **bản tốt nhất hiện tại** | 24.585 | 81.783 | 16.364 | **72.7401** |
+| 25/07/2026 03:24 | + Monocular Depth Supervision (Depth Anything V2 + `--depths depths`) | — | — | — | 72.7198 |
 
 ## 8. Kết quả thử nghiệm densification & hướng tiếp theo
 
@@ -303,13 +304,20 @@ SSIM 0.8268 / LPIPS 0.1270 / score 0.8484**. Lưu ý `--psnr_max 30` ở đây c
 thang đo cục bộ để so sánh tương đối giữa các thử nghiệm — công thức điểm thật của
 BTC dùng `PSNR_max=50` (mục 6).
 
-## 10. Lưu ý bám sát luật thi
+## 10. Tuân thủ Quy định Tái lập Kết quả (Contest Rule 10.3)
 
-- **Không dùng dữ liệu ngoài**: toàn bộ script chỉ dùng data BTC phát.
-- **Không chỉnh sửa ảnh thủ công**: mọi ảnh trong `submission_build*/` do
-  `03_render_novel_views.py` + `10_redistort_renders.py` tự sinh — cả 2 bước này
-  đều là biến đổi tự động, xác định trước (deterministic), áp dụng đều cho mọi
-  ảnh, không có bước chỉnh tay từng ảnh nào trong pipeline.
-- **Khả năng tái lập (rule 10.3)**: giữ `output/<scene>/cfg_args` (train.py tự
-  ghi), checkpoint `point_cloud.ply`, `logs/train/*.log`, và
-  `environment_snapshot/` (mục 5) — 4 thứ BTC có thể yêu cầu nộp nếu vào top cao.
+Để đáp ứng 5 yêu cầu tái lập kết quả của Ban Tổ Chức:
+
+1. **Mã nguồn (Training & Inference)**: Thư mục `scripts/` và `external/gaussian-splatting/`.
+2. **File cấu hình (Config)**: Các tham số CLI trong `README.md` và file `cfg_args` theo từng scene.
+3. **Danh sách thư viện & phiên bản**: `requirements.txt` và `requirements_freeze.txt`.
+4. **Checkpoint mô hình**: File `point_cloud.ply` ở iteration cuối cùng của từng scene.
+5. **Nhật ký huấn luyện (Training logs)**: Thư mục `logs/` chứa toàn bộ log stdout/stderr khi train.
+
+### Lệnh đóng gói tự động cho BTC
+
+```bash
+python scripts/14_package_reproducibility.py --output_tar reproducibility_package.tar.gz
+```
+Lệnh này tự động gom toàn bộ 5 mục trên vào 1 file `reproducibility_package.tar.gz` duy nhất.
+
