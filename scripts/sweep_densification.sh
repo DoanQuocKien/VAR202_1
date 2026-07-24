@@ -17,10 +17,11 @@ GRAD_THRESHOLDS=(0.00020 0.00015 0.00010)
 DENSIFY_UNTIL=(15000 20000 25000)
 PERCENT_DENSE=(0.01)
 
-# Run paired configs: (0.00020,15000), (0.00015,20000), (0.00010,25000)
-# Use indexed loop so we test 3 configs, not the full 3x3=9 grid
+# Only test the unexplored MIDDLE GROUND configs.
+# README §6.5 confirms default (0.00020, 15000) already tried → no change.
+# README §6.5 confirms fully aggressive → OOM crash.
+# Only the middle range below is unexplored:
 CONFIGS=(
-  "0.00020 15000"
   "0.00015 20000"
   "0.00010 25000"
 )
