@@ -1,0 +1,44 @@
+{
+  "bonsai": {
+    "model": "SIMPLE_PINHOLE",
+    "width": 1920,
+    "height": 1080,
+    "has_distortion": false
+  },
+  "chair": {
+    "model": "SIMPLE_PINHOLE",
+    "width": 720,
+    "height": 1280,
+    "has_distortion": false
+  },
+  "HCM0421": {
+    "model": "PINHOLE",
+    "width": 1320,
+    "height": 989,
+    "has_distortion": false
+  },
+  "HCM0539": {
+    "model": "PINHOLE",
+    "width": 1320,
+    "height": 989,
+    "has_distortion": false
+  },
+  "HCM0540": {
+    "model": "PINHOLE",
+    "width": 1320,
+    "height": 989,
+    "has_distortion": false
+  },
+  "HCM0644": {
+    "model": "PINHOLE",
+    "width": 1320,
+    "height": 989,
+    "has_distortion": false
+  },
+  "HCM0674": {
+    "model": "PINHOLE",
+    "width": 1320,
+    "height": 989,
+    "has_distortion": false
+  }
+}
