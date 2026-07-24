@@ -32,7 +32,7 @@ if command -v conda >/dev/null 2>&1; then
     # which pip resolves relative to the current working directory at install
     # time — so we must run conda env create from inside external/gaussian-splatting,
     # not from the repo root, or pip can't find them.
-    sed "s/^name: .*/name: ${ENV_NAME}/" "${EXTERNAL_DIR}/environment.yml" > /tmp/var2026_env.yml
+    sed -e "s/^name: .*/name: ${ENV_NAME}/" -e "/submodules\//d" "${EXTERNAL_DIR}/environment.yml" > /tmp/var2026_env.yml
     (cd "${EXTERNAL_DIR}" && conda env create -f /tmp/var2026_env.yml)
   fi
   echo "Activate with: conda activate ${ENV_NAME}"
