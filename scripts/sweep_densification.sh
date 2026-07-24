@@ -13,18 +13,26 @@ DIST_K=0.00795193982469231
 DIST_CX=660.0
 DIST_CY=494.5
 
-GRAD_THRESHOLDS=(0.00010 0.00012 0.00015 0.00018 0.00020)
+GRAD_THRESHOLDS=(0.00020 0.00015 0.00010)
 DENSIFY_UNTIL=(15000 20000 25000)
 PERCENT_DENSE=(0.01)
+
+# Run paired configs: (0.00020,15000), (0.00015,20000), (0.00010,25000)
+# Use indexed loop so we test 3 configs, not the full 3x3=9 grid
+CONFIGS=(
+  "0.00020 15000"
+  "0.00015 20000"
+  "0.00010 25000"
+)
 
 RESULTS_FILE="logs/sweep_results.csv"
 mkdir -p logs
 
 echo "grad_threshold,densify_until,percent_dense,psnr,ssim,lpips,score" > "${RESULTS_FILE}"
 
-for gt in "${GRAD_THRESHOLDS[@]}"; do
-  for du in "${DENSIFY_UNTIL[@]}"; do
-    for pd in "${PERCENT_DENSE[@]}"; do
+for CONFIG in "${CONFIGS[@]}"; do
+  read -r gt du <<< "${CONFIG}"
+  pd="0.01"
       TAG="gt${gt}_du${du}_pd${pd}"
       MODEL_DIR="output/sweep_${TAG}"
       RENDER_DIR="submission_build/sweep_${TAG}"
@@ -76,8 +84,6 @@ for gt in "${GRAD_THRESHOLDS[@]}"; do
 
       echo "${gt},${du},${pd},${SCORE_LINE}" >> "${RESULTS_FILE}"
       echo "  => Results (PSNR,SSIM,LPIPS,Score): ${SCORE_LINE}"
-    done
-  done
 done
 
 echo ""
