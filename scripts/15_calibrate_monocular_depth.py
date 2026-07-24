@@ -10,6 +10,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Dict, Any, Tuple
 
 import cv2
 import numpy as np
@@ -19,14 +20,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 from pipeline_utils import is_image
 
 
-def read_colmap_sparse(sparse_dir: Path):
+def read_colmap_sparse(sparse_dir: Path) -> Tuple[Dict[int, Any], Dict[int, Any], Dict[int, Any]]:
     """Simple parser for COLMAP binary sparse files (points3D.bin, images.bin, cameras.bin)."""
     sys.path.insert(0, str(Path(__file__).parent.parent / "external" / "gaussian-splatting"))
     from scene.colmap_loader import read_points3D_binary, read_extrinsics_binary, read_intrinsics_binary
     
-    pts3d = read_points3D_binary(sparse_dir / "points3D.bin")
-    imgs = read_extrinsics_binary(sparse_dir / "images.bin")
-    cams = read_intrinsics_binary(sparse_dir / "cameras.bin")
+    pts3d: Dict[int, Any] = read_points3D_binary(sparse_dir / "points3D.bin")  # type: ignore
+    imgs: Dict[int, Any] = read_extrinsics_binary(sparse_dir / "images.bin")    # type: ignore
+    cams: Dict[int, Any] = read_intrinsics_binary(sparse_dir / "cameras.bin")    # type: ignore
     return pts3d, imgs, cams
 
 
@@ -41,62 +42,59 @@ def calibrate_scene(scene_train_dir: Path):
     pts3d, imgs, cams = read_colmap_sparse(sparse_dir)
     print(f"[{scene_train_dir.parent.name}] Calibrating {len(imgs)} cameras against {len(pts3d)} sparse 3D points...")
 
-    # Map 3D point IDs to coordinates
-    pts3d_dict = {p_id: pt.xyz for p_id, pt in pts3d.items()}
+    pts3d_dict = {}
+    if isinstance(pts3d, dict):
+        for p_id, pt in pts3d.items():
+            if hasattr(pt, "xyz"):
+                pts3d_dict[p_id] = pt.xyz
 
     depth_params = {}
-    for img_id, img_info in imgs.items():
-        stem = Path(img_info.name).stem
-        depth_png = depths_dir / f"{stem}.png"
-        
-        if not depth_png.is_file():
-            depth_params[stem] = {"scale": 1.0, "offset": 0.0}
-            continue
-
-        # Load normalized 16-bit PNG monocular depth
-        raw_png = cv2.imread(str(depth_png), cv2.IMREAD_UNCHANGED)
-        if raw_png is None:
-            depth_params[stem] = {"scale": 1.0, "offset": 0.0}
-            continue
-        
-        mono_inv_depth = raw_png.astype(np.float64) / 65535.0
-
-        # Gather sparse 3D points observed by this camera
-        cam_id = img_info.camera_id
-        qvec = img_info.qvec
-        tvec = img_info.tvec
-        
-        # World to camera rotation matrix
-        from scene.colmap_loader import qvec2rotmat
-        R = qvec2rotmat(qvec)
-
-        colmap_inv_depths = []
-        mono_vals = []
-
-        h, w = mono_inv_depth.shape
-        for pt_id, point2D in zip(img_info.point3D_ids, img_info.xys):
-            if pt_id in pts3d_dict:
-                P_world = pts3d_dict[pt_id]
-                P_cam = R @ P_world + tvec
-                z = P_cam[2]
-                if z > 0.1:  # valid depth in front of camera
-                    x_px, y_px = int(round(point2D[0])), int(round(point2D[1]))
-                    if 0 <= x_px < w and 0 <= y_px < h:
-                        colmap_inv_depths.append(1.0 / z)
-                        mono_vals.append(mono_inv_depth[y_px, x_px])
-
-        if len(colmap_inv_depths) >= 10:
-            c_inv = np.array(colmap_inv_depths)
-            m_val = np.array(mono_vals)
+    if isinstance(imgs, dict):
+        for img_id, img_info in imgs.items():
+            stem = Path(img_info.name).stem
+            depth_png = depths_dir / f"{stem}.png"
             
-            # Robust median scale ratio
-            scale = float(np.median(c_inv / (m_val + 1e-6)))
-            offset = 0.0
-            depth_params[stem] = {"scale": scale, "offset": offset}
-        else:
-            depth_params[stem] = {"scale": 1.0, "offset": 0.0}
+            if not depth_png.is_file():
+                depth_params[stem] = {"scale": 1.0, "offset": 0.0}
+                continue
 
-    # Write calibrated depth_params.json
+            raw_png = cv2.imread(str(depth_png), cv2.IMREAD_UNCHANGED)
+            if raw_png is None:
+                depth_params[stem] = {"scale": 1.0, "offset": 0.0}
+                continue
+            
+            mono_inv_depth = raw_png.astype(np.float64) / 65535.0
+
+            qvec = img_info.qvec
+            tvec = img_info.tvec
+            
+            from scene.colmap_loader import qvec2rotmat
+            R = qvec2rotmat(qvec)
+
+            colmap_inv_depths = []
+            mono_vals = []
+
+            h, w = mono_inv_depth.shape
+            for pt_id, point2D in zip(img_info.point3D_ids, img_info.xys):
+                if pt_id in pts3d_dict:
+                    P_world = pts3d_dict[pt_id]
+                    P_cam = R @ P_world + tvec
+                    z = P_cam[2]
+                    if z > 0.1:
+                        x_px, y_px = int(round(point2D[0])), int(round(point2D[1]))
+                        if 0 <= x_px < w and 0 <= y_px < h:
+                            colmap_inv_depths.append(1.0 / z)
+                            mono_vals.append(mono_inv_depth[y_px, x_px])
+
+            if len(colmap_inv_depths) >= 10:
+                c_inv = np.array(colmap_inv_depths)
+                m_val = np.array(mono_vals)
+                scale = float(np.median(c_inv / (m_val + 1e-6)))
+                offset = 0.0
+                depth_params[stem] = {"scale": scale, "offset": offset}
+            else:
+                depth_params[stem] = {"scale": 1.0, "offset": 0.0}
+
     with open(sparse_dir / "depth_params.json", "w") as f:
         json.dump(depth_params, f, indent=2)
 
