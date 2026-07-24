@@ -32,8 +32,7 @@ def pearson_correlation_loss(pred, target):
                                   "from utils.loss_utils import l1_loss, ssim\n" + pearson_func)
     
     # 2. Find the exact L1 depth loss calculation line
-    # Usually looks like: Ll1depth = l1_loss(rendered_depth, viewpoint_cam.depth)
-    match = re.search(r'(Ll1depth\s*=\s*)l1_loss\((.*?)\)', content)
+    match = re.search(r'(Ll1depth_pure\s*=\s*)l1_loss\((.*?)\)', content)
     
     if match:
         old_line = match.group(0)
