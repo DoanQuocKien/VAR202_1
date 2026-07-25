@@ -260,18 +260,19 @@ Peak VRAM khi train moderate: **~19.5/24 GB** (RTX 4090), không OOM.
 - **Depth Anything V2 (Pearson Correlation Loss)**: Điểm **72.1607**.
   - *Thử nghiệm tối thượng*: Thay vì dùng L1, chúng tôi đã patch mã nguồn `train.py` để sử dụng Pearson Correlation Loss (chuẩn scale-invariant của các paper 2024 như DN-Splatter). Phương pháp này giúp file nén giảm mạnh xuống 306 MB (chứng tỏ đã triệt tiêu hoàn toàn nhiễu floater) và đẩy PSNR/SSIM lên mức cao kỷ lục.
   - *Nguyên nhân thất bại (Khoa học)*: Tuy nhiên, LPIPS lại tăng vọt (xấu đi). Lý do là BTS tower chứa các cấu trúc siêu mỏng (cáp, ăng-ten) mà Depth Anything V2 chỉ có thể nhận diện thành các khối "blob" trơn nhẵn. Pearson loss ép 3DGS làm phẳng các cấu trúc này, phá hủy hoàn toàn chi tiết tần số cao (high-frequency details).
-- **Render-time Anti-Aliasing (`--antialiasing`)**: Điểm **64.5105** (sụt giảm nặng — Mip-Splatting filter làm mờ ảnh khi checkpoint không được *train* trực tiếp với filter này).
-- **KẾT LUẬN CUỐI CÙNG**: Mô hình **RGB-Only với Moderate Densification (72.7401)** là giới hạn vật lý và toán học tuyệt đối trên tập dữ liệu này. Monocular Depth Supervision được chứng minh bằng toán học là gây hại cho cấu trúc siêu mỏng (sub-pixel) của trạm BTS. Giữ nguyên bản **72.7401** (`submission_round2_fast_ft_v2.zip`) làm bản nộp chính thức.
+- **Render-time Anti-Aliasing (`--antialiasing`)**: Điểm **64.5105** (sụt giảm nặng). Mip-Splatting filter làm mờ ảnh do mô hình không được train trực tiếp với filter này.
+- **Supersampled Rendering (2x) + Lanczos Downsample**: Điểm **70.6480** (sụt giảm rất mạnh). Dù khắc phục được tình trạng nhòe của Pearson loss (kéo file nén lên 332MB), việc render Gaussians ở độ phân giải sub-pixel phá vỡ hoàn toàn sự cân bằng Spherical Harmonics và alpha-blending được tối ưu ở lưới pixel 1x.
+- **KẾT LUẬN CUỐI CÙNG**: Mô hình **RGB-Only với Moderate Densification (72.7401)** hiện là giới hạn an toàn và ổn định nhất. Monocular Depth Supervision toàn phần được chứng minh là gây hại cho cấu trúc siêu mỏng (sub-pixel) của trạm BTS. Giữ nguyên bản **72.7401** (`submission_round2_fast_ft_v2.zip`) làm bản nộp chính thức hiện tại.
 
 ---
 
 ### 8.3. Đột phá tiếp theo (Breakthrough Roadmap)
 
-| Thứ tự | Kỹ thuật / Đột phá | Chi phí | Kỳ vọng | Mô tả |
-|---|---|---|---|---|
-| **1** | **Supersampled Rendering ONLY (2x)** | **~$0.05** | **+0.1 đến +0.3** | Render ở 2x (KHÔNG bật `--antialiasing`), để `10_redistort_renders.py` tự downsample bằng Lanczos khi remap. Khung sắt/dây cáp nét hơn. |
-| **2** | **Test-Time Adaptation** | **~$0.50** | **+0.3 đến +1.0** | Tối ưu nhẹ 5-10 iter cho từng góc nhìn test dựa trên tính nhất quán depth/smoothness trước khi xuất ảnh. |
-| **3** | **2D Gaussian Splatting (2DGS)** | **~$3.00** | **+1.0 đến +3.0** | Thay thế 3DGS bằng 2DGS (surfels dạng mặt phẳng). Cực kỳ thích hợp cho công trình xây dựng/cột BTS. |
+| Thứ tự | Kỹ thuật / Đột phá | Trạng thái | Mô tả |
+|---|---|---|---|
+| **1** | **Edge-Aware Selective Depth Regularization** | **Sẽ thử nghiệm** | Giải quyết nhược điểm Depth Anything phá hủy cấu trúc mỏng bằng cách:<br>1. Dùng Sobel filter tính đạo hàm không gian của ảnh RGB để phát hiện cạnh (dây cáp, ăng-ten).<br>2. Cài đặt weight của depth loss = 0 ở các vùng cạnh này để giữ độ sắc nét tuyệt đối của bản gốc.<br>3. Giữ weight = 1 ở vùng phẳng (trời, bê tông) để khử nhiễu floater một cách an toàn. |
+| **2** | **Test-Time Adaptation (TTA)** | Chưa thử | Tối ưu nhẹ 5-10 iter cho từng góc nhìn test dựa trên tính nhất quán depth/smoothness trước khi xuất ảnh. |
+| **3** | **2D Gaussian Splatting (2DGS)** | Chưa thử | Thay thế 3DGS bằng 2DGS (surfels dạng mặt phẳng). Cực kỳ thích hợp cho công trình xây dựng/cột BTS. |
 
 ## 9. Tự đánh giá trước khi nộp (dùng scene `HCM0193`)
 
